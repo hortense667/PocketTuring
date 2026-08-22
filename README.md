@@ -1,9 +1,9 @@
 # Pocket Turing for M5Stack STOPWATCH
 **〜 手のひらの上のデジタル虫かご（Digital Bug Box） 〜**
 
-M5Stack STOPWATCH（ESP32-S3搭載）の円形ディスプレイ上で、**チューリングパターン（Gray-Scottモデル）**をリアルタイムにシミュレーションし、直感的なタッチ操作で模様を育て、採取し、さらにPCへ画像をエクスポートできるインタラクティブ・ガジェットです。
+by Satoshi Endo https://x.com/hortense667
 
-![Pocket Turing Demo](images/demo.jpg) *(※ここに動作中の写真やGIFのURLを貼ってください)*
+M5Stack STOPWATCH（ESP32-S3搭載）の円形ディスプレイ上で、**チューリングパターン（Gray-Scottモデル）**をリアルタイムにシミュレーションし、直感的なタッチ操作で模様を育て、採取し、さらにPCへ画像をエクスポートできるインタラクティブ・ガジェットです。
 
 ## ✨ 特徴 (Features)
 
