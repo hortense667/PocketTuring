@@ -29,9 +29,9 @@ int preset_idx = 0;
 bool is_manual = false; 
 char popup_msg[32] = "";
 
-float presets_f[] = {0.029, 0.022, 0.030, 0.014, 0.035, 0.026, 0.062, 0.037};
-float presets_k[] = {0.057, 0.051, 0.062, 0.045, 0.056, 0.052, 0.061, 0.060};
-const char* preset_names[] = {"MAZES", "STRIPES", "SPOTS", "WAVES", "HOLES", "MIXED", "U-SKATE", "WORMS"};
+float presets_f[] = {0.029, 0.022, 0.065, 0.050, 0.038, 0.082, 0.062, 0.033};
+float presets_k[] = {0.057, 0.051, 0.061, 0.064, 0.065, 0.061, 0.063, 0.056};
+const char* preset_names[] = {"MAZES", "STRIPES", "HYBRID", "WORMS", "SPOTS", "CELLS", "FINGER", "HOLES"};
 
 float current_f;
 float current_k;
@@ -200,21 +200,17 @@ void Task0Code(void * pvParameters) {
 }
 
 void dropSeed() {
-    for (int x = W / 2 - 8; x < W / 2 + 8; x++) {
-        for (int y = H / 2 - 8; y < H / 2 + 8; y++) {
-            u[x][y] = 32768; 
-            v[x][y] = 32768; 
-        }
-    }
-    for(int i = 0; i < 40; i++) {
-        int cx = W / 2 + random(-25, 25);
-        int cy = H / 2 + random(-25, 25);
-        int size = random(2, 5); 
+    // 中央の巨大なシンメトリー原因（正方形ブロック）を廃止し、
+    // 画面の広範囲にランダムで有機的なタネをばらまく
+    for(int i = 0; i < 60; i++) { // 数を40から60に増加
+        int cx = random(15, W - 15); // 画面全体に散らす
+        int cy = random(15, H - 15);
+        int size = random(2, 7); // 大小さまざまなタネ
         for(int x = cx; x < cx + size; x++) {
             for(int y = cy; y < cy + size; y++) {
                 if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
-                    u[x][y] = 32768; 
-                    float v_val = 0.25f + random(-5, 5) / 100.0f;
+                    u[x][y] = 32768; // Aを0.5に
+                    float v_val = 0.50f + random(-10, 10) / 100.0f; // Bを少し濃いめに落とす
                     v[x][y] = (uint16_t)(v_val * 65535.0f);
                 }
             }
