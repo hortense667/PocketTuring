@@ -29,6 +29,7 @@ int preset_idx = 0;
 bool is_manual = false; 
 char popup_msg[32] = "";
 
+// 厳選されたオリジナル・プリセット
 float presets_f[] = {0.029, 0.022, 0.065, 0.050, 0.038, 0.082, 0.062, 0.033};
 float presets_k[] = {0.057, 0.051, 0.061, 0.064, 0.065, 0.061, 0.063, 0.056};
 const char* preset_names[] = {"MAZES", "STRIPES", "HYBRID", "WORMS", "SPOTS", "CELLS", "FINGER", "HOLES"};
@@ -199,18 +200,43 @@ void Task0Code(void * pvParameters) {
     }
 }
 
-void dropSeed() {
-    // 中央の巨大なシンメトリー原因（正方形ブロック）を廃止し、
-    // 画面の広範囲にランダムで有機的なタネをばらまく
-    for(int i = 0; i < 60; i++) { // 数を40から60に増加
-        int cx = random(15, W - 15); // 画面全体に散らす
+// プリセット切り替え用（画面全体に散らす）
+void dropSeedSpread() {
+    for(int i = 0; i < 60; i++) {
+        int cx = random(15, W - 15);
         int cy = random(15, H - 15);
-        int size = random(2, 7); // 大小さまざまなタネ
+        int size = random(2, 7); 
         for(int x = cx; x < cx + size; x++) {
             for(int y = cy; y < cy + size; y++) {
                 if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
-                    u[x][y] = 32768; // Aを0.5に
-                    float v_val = 0.50f + random(-10, 10) / 100.0f; // Bを少し濃いめに落とす
+                    u[x][y] = 32768; 
+                    float v_val = 0.50f + random(-10, 10) / 100.0f;
+                    v[x][y] = (uint16_t)(v_val * 65535.0f);
+                }
+            }
+        }
+    }
+}
+
+// 手動タップ用（指定した座標にスポット投下）
+void dropSeedSpot(int tx, int ty) {
+    for (int x = tx - 8; x < tx + 8; x++) {
+        for (int y = ty - 8; y < ty + 8; y++) {
+            if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
+                u[x][y] = 32768; 
+                v[x][y] = 32768; 
+            }
+        }
+    }
+    for(int i = 0; i < 40; i++) {
+        int cx = tx + random(-25, 25);
+        int cy = ty + random(-25, 25);
+        int size = random(2, 5); 
+        for(int x = cx; x < cx + size; x++) {
+            for(int y = cy; y < cy + size; y++) {
+                if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
+                    u[x][y] = 32768; 
+                    float v_val = 0.25f + random(-5, 5) / 100.0f;
                     v[x][y] = (uint16_t)(v_val * 65535.0f);
                 }
             }
@@ -225,7 +251,7 @@ void resetPattern() {
             v[x][y] = 0;
         }
     }
-    dropSeed();
+    dropSeedSpread();
     
     if (!is_manual) {
         current_f = presets_f[preset_idx];
@@ -363,6 +389,15 @@ void drawUI() {
     M5.Display.setTextSize(2);
     M5.Display.setTextColor(c_white, c_black);
     M5.Display.drawString(info_buf, 233, 415); 
+
+    // 【追加】バッテリー低下警告（10%未満で0.5秒ごとに点滅）
+    int bat_level = M5.Power.getBatteryLevel();
+    if (bat_level < 10) {
+        if ((millis() / 500) % 2 == 0) { 
+            M5.Display.setTextColor(c_accent, c_black);
+            M5.Display.drawString("LOW BATTERY", 233, 440); 
+        }
+    }
 
     if (show_preset) {
         if (millis() - preset_show_time < 2000) {
@@ -507,7 +542,11 @@ void loop() {
                 }
             } 
             else if (r < 80 && t.wasPressed()) {
-                dropSeed();
+                // タップした座標から配列上の位置を逆算してスポット投下
+                int tx = (t.x - 233) / SCALE + W / 2;
+                int ty = (t.y - 233) / SCALE + H / 2;
+                dropSeedSpot(tx, ty);
+                
                 sprintf(popup_msg, " DROP SEED! ");
                 preset_show_time = millis();
                 show_preset = true;
