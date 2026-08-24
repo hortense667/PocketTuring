@@ -20,6 +20,11 @@ int total_saves = 0;
 uint32_t btn_blue_press_time = 0;
 uint32_t btn_orange_press_time = 0;
 
+// --- 1時間タイマー用の変数 ---
+uint32_t last_change_time = 0;
+const uint32_t HOUR_MILLIS = 180000; //3600000; // 60分 = 3,600,000ミリ秒
+// -----------------------------
+
 bool menu_needs_redraw = true; 
 bool orange_action_flag = false; 
 bool gallery_blue_ready = false; 
@@ -490,7 +495,24 @@ int prev_y_left = -1;
 
 void loop() {
     M5.update();
-    
+
+// --- 追加：60分ごとの自動環境変化 ---
+    if (millis() - last_change_time >= HOUR_MILLIS) {
+        last_change_time = millis(); 
+        
+        if (app_mode == 0 && !is_manual) { 
+            preset_idx = (preset_idx + 1) % 8; 
+            
+            if (preset_idx == 0) {
+                color_mode = (color_mode + 1) % 8;
+            }
+
+            // ★ここを変更！個別にFやKを変えるのではなく、手動と同じ完全リセットを呼ぶ
+            resetPattern(); 
+        }
+    }
+    // ------------------------------------
+
     bool orange_pressed  = M5.BtnA.wasPressed();
     bool orange_held     = M5.BtnA.isPressed();
     bool orange_released = M5.BtnA.wasReleased();
