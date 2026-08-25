@@ -22,7 +22,7 @@ uint32_t btn_orange_press_time = 0;
 
 // --- 1時間タイマー用の変数 ---
 uint32_t last_change_time = 0;
-const uint32_t HOUR_MILLIS = 180000; //3600000; // 60分 = 3,600,000ミリ秒
+const uint32_t HOUR_MILLIS = 3600000; // 60分 = 3,600,000ミリ秒
 // -----------------------------
 
 bool menu_needs_redraw = true; 
@@ -501,18 +501,17 @@ void loop() {
         last_change_time = millis(); 
         
         if (app_mode == 0 && !is_manual) { 
-            preset_idx = (preset_idx + 1) % 8; 
+            preset_idx = (preset_idx + 1) % 8; // プリセットは順番に進む
             
-            if (preset_idx == 0) {
-                color_mode = (color_mode + 1) % 8;
-            }
+            // ★変更：色が1周ごとではなく、切り替わるたびに毎回ランダムになる
+            color_mode = random(0, 8); 
 
-            // ★ここを変更！個別にFやKを変えるのではなく、手動と同じ完全リセットを呼ぶ
+            // 手動と同じ完全リセット＆シード投下
             resetPattern(); 
         }
     }
     // ------------------------------------
-
+    
     bool orange_pressed  = M5.BtnA.wasPressed();
     bool orange_held     = M5.BtnA.isPressed();
     bool orange_released = M5.BtnA.wasReleased();
