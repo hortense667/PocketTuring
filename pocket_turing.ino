@@ -20,11 +20,6 @@ int total_saves = 0;
 uint32_t btn_blue_press_time = 0;
 uint32_t btn_orange_press_time = 0;
 
-// --- 1時間タイマー用の変数 ---
-uint32_t last_change_time = 0;
-const uint32_t HOUR_MILLIS = 3600000; // 60分 = 3,600,000ミリ秒
-// -----------------------------
-
 bool menu_needs_redraw = true; 
 bool orange_action_flag = false; 
 bool gallery_blue_ready = false; 
@@ -33,6 +28,12 @@ bool gallery_orange_ready = false;
 int preset_idx = 0;
 bool is_manual = false; 
 char popup_msg[32] = "";
+
+// ポモドーロタイマー用変数
+uint32_t pomodoro_start = 0;
+bool is_rest = false;
+const uint32_t POMODORO_WORK = 25 * 60 * 1000; // 25分
+const uint32_t POMODORO_REST =  5 * 60 * 1000; // 5分
 
 // 厳選されたオリジナル・プリセット
 float presets_f[] = {0.029, 0.022, 0.065, 0.050, 0.038, 0.082, 0.062, 0.033};
@@ -205,12 +206,27 @@ void Task0Code(void * pvParameters) {
     }
 }
 
-// プリセット切り替え用（画面全体に散らす）
+// プリセット切り替え用（画面全体に散らす：強力版）
 void dropSeedSpread() {
+    // 1. 絶対に死なない「大きくて濃いコア（核）」を5個ほど落とす
+    for(int i = 0; i < 5; i++) {
+        int cx = random(20, W - 20);
+        int cy = random(20, H - 20);
+        int size = random(10, 15);
+        for(int x = cx; x < cx + size; x++) {
+            for(int y = cy; y < cy + size; y++) {
+                if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
+                    u[x][y] = 32768; 
+                    v[x][y] = 65535; 
+                }
+            }
+        }
+    }
+    // 2. その周りに細かいタネをばらまく
     for(int i = 0; i < 60; i++) {
-        int cx = random(15, W - 15);
-        int cy = random(15, H - 15);
-        int size = random(2, 7); 
+        int cx = random(10, W - 10);
+        int cy = random(10, H - 10);
+        int size = random(3, 8); 
         for(int x = cx; x < cx + size; x++) {
             for(int y = cy; y < cy + size; y++) {
                 if(x > 0 && x < W - 1 && y > 0 && y < H - 1) {
@@ -275,6 +291,8 @@ void setup() {
     auto cfg = M5.config();
     M5.begin(cfg);
     M5.Display.setBrightness(128);
+    M5.Speaker.setVolume(32); // ブザーの音量設定 (0-255)
+
     canvas.createSprite(W, H);
     
     LittleFS.begin(true);
@@ -297,6 +315,7 @@ void setup() {
     xTaskCreatePinnedToCore(Task0Code, "Task0", 4096, NULL, 1, &Task0, 0);
     
     resetPattern();
+    pomodoro_start = millis(); // ポモドーロタイマー開始
 }
 
 void updateGS() {
@@ -395,7 +414,7 @@ void drawUI() {
     M5.Display.setTextColor(c_white, c_black);
     M5.Display.drawString(info_buf, 233, 415); 
 
-    // 【追加】バッテリー低下警告（10%未満で0.5秒ごとに点滅）
+    // バッテリー低下警告
     int bat_level = M5.Power.getBatteryLevel();
     if (bat_level < 10) {
         if ((millis() / 500) % 2 == 0) { 
@@ -495,23 +514,33 @@ int prev_y_left = -1;
 
 void loop() {
     M5.update();
+    
+    // --- ポモドーロ・タイマー制御 ---
+    uint32_t current_time = millis();
+    uint32_t elapsed = current_time - pomodoro_start;
 
-// --- 追加：60分ごとの自動環境変化 ---
-    if (millis() - last_change_time >= HOUR_MILLIS) {
-        last_change_time = millis(); 
+    // 25分の作業時間が終わった時（休憩開始）
+    if (!is_rest && elapsed >= POMODORO_WORK) {
+        is_rest = true;
+        pomodoro_start = current_time;
         
-        if (app_mode == 0 && !is_manual) { 
-            preset_idx = (preset_idx + 1) % 8; // プリセットは順番に進む
-            
-            // ★変更：色が1周ごとではなく、切り替わるたびに毎回ランダムになる
+        M5.Speaker.tone(2000, 200); 
+        
+        if (app_mode == 0 && !is_manual) {
+            preset_idx = (preset_idx + 1) % 8;
             color_mode = random(0, 8); 
-
-            // 手動と同じ完全リセット＆シード投下
             resetPattern(); 
         }
     }
-    // ------------------------------------
-    
+    // 5分の休憩時間が終わった時（作業開始）
+    else if (is_rest && elapsed >= POMODORO_REST) {
+        is_rest = false;
+        pomodoro_start = current_time;
+        
+        M5.Speaker.tone(2000, 200); 
+    }
+    // --------------------------------
+
     bool orange_pressed  = M5.BtnA.wasPressed();
     bool orange_held     = M5.BtnA.isPressed();
     bool orange_released = M5.BtnA.wasReleased();
@@ -563,7 +592,6 @@ void loop() {
                 }
             } 
             else if (r < 80 && t.wasPressed()) {
-                // タップした座標から配列上の位置を逆算してスポット投下
                 int tx = (t.x - 233) / SCALE + W / 2;
                 int ty = (t.y - 233) / SCALE + H / 2;
                 dropSeedSpot(tx, ty);
